@@ -131,9 +131,37 @@ class Ball:
         else:
             return math.inf
 
+    def time_to_hit_paddle_side(self, paddle):
+        if (self.vy > 0) and ((self.y + self.size) > (paddle.location[1] - paddle.height/2)):
+            return math.inf
+        if (self.vy < 0) and ((self.y - self.size) < (paddle.location[1] + paddle.height/2)):
+            return math.inf
+
+        dt = (math.sqrt((paddle.location[1] - self.y)**2) - self.size - paddle.height/2) / abs(self.vy)
+        paddle_left_edge = paddle.location[0] - paddle.width/2
+        paddle_right_edge = paddle.location[0] + paddle.width/2
+        if paddle_left_edge - self.size <= self.x + (self.vx*dt) <= paddle_right_edge + self.size:
+            return dt
+        else:
+            return math.inf
+
     def bounce_off_paddle(self):
         self.vy = -self.vy
         self.count += 1
 
     def __str__(self):
         return str(self.x) + ":" + str(self.y) + ":" + str(self.vx) + ":" + str(self.vy) + ":" + str(self.count) + str(self.id)
+
+
+class Obstacle(Ball):
+    def __init__(self, size, x, y, vx, vy, id):
+        super().__init__(size, x, y, vx, vy, id)
+        turtle.register_shape("fire.gif")
+        self.shape = "fire.gif"
+
+    def draw(self):
+        turtle.penup()
+        turtle.goto(self.x, self.y)
+        turtle.shape(self.shape)
+        turtle.stamp()
+        turtle.hideturtle()
