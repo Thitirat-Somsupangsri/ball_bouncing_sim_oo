@@ -1,142 +1,132 @@
-import ball
-import my_event
 import turtle
 import random
-import heapq
-import paddle
+import time
+from paddle import Player
+from object import Snow, Fire
+from ending import EndingScene
 
-class BouncingSimulator:
-    def __init__(self, num_balls):
-        self.num_balls = num_balls
-        self.ball_list = []
-        self.t = 0.0
-        self.pq = []
-        self.HZ = 4
-        turtle.speed(0)
-        turtle.tracer(0)
-        turtle.hideturtle()
-        turtle.colormode(255)
-        self.canvas_width = turtle.screensize()[0]
-        self.canvas_height = turtle.screensize()[1]
-        print(self.canvas_width, self.canvas_height)
 
-        ball_radius = 0.05 * self.canvas_width
-        for i in range(self.num_balls):
-            x = -self.canvas_width + (i+1)*(2*self.canvas_width/(self.num_balls+1))
-            y = 0.0
-            vx = 10*random.uniform(-1.0, 1.0)
-            vy = 10*random.uniform(-1.0, 1.0)
-            ball_color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-            self.ball_list.append(ball.Ball(ball_radius, x, y, vx, vy, ball_color, i))
-
-        tom = turtle.Turtle()
-        self.my_paddle = paddle.Paddle(200, 50, (255, 0, 0), tom)
-        self.my_paddle.set_location([0, -50])
-
+class Game:
+    def __init__(self):
         self.screen = turtle.Screen()
+        self.screen.setup(width=800, height=600)
+        self.canvas_width = 800
+        self.canvas_height = 600
 
-    # updates priority queue with all new events for a_ball
-    def __predict(self, a_ball):
-        if a_ball is None:
-            return
+        self.screen.bgcolor("LightBlue")
+        self.screen.title("Snowman Game")
+        self.screen.tracer(0)
 
-        # particle-particle collisions
-        for i in range(len(self.ball_list)):
-            dt = a_ball.time_to_hit(self.ball_list[i])
-            # insert this event into pq
-            heapq.heappush(self.pq, my_event.Event(self.t + dt, a_ball, self.ball_list[i], None))
-        
-        # particle-wall collisions
-        dtX = a_ball.time_to_hit_vertical_wall()
-        dtY = a_ball.time_to_hit_horizontal_wall()
-        heapq.heappush(self.pq, my_event.Event(self.t + dtX, a_ball, None, None))
-        heapq.heappush(self.pq, my_event.Event(self.t + dtY, None, a_ball, None))
-    
-    def __draw_border(self):
-        turtle.penup()
-        turtle.goto(-self.canvas_width, -self.canvas_height)
-        turtle.pensize(10)
-        turtle.pendown()
-        turtle.color((0, 0, 0))   
-        for i in range(2):
-            turtle.forward(2*self.canvas_width)
-            turtle.left(90)
-            turtle.forward(2*self.canvas_height)
-            turtle.left(90)
+        self.screen.register_shape("paddle_display.gif")
+        self.screen.register_shape("fire.gif")
 
-    def __redraw(self):
-        turtle.clear()
-        self.my_paddle.clear()
+        self.player = Player("paddle_display.gif", 2, self.screen)
+
+        self.balls = []
+        for _ in range(20):
+            self.balls.append(Snow(screen=self.screen))
+        for _ in range(4):
+            self.balls.append(Fire(screen=self.screen))
+
+        self.score = 0
+        self.heart = 3
+        self.needed_ball = random.randint(40, 80)
+
+        self.pen = turtle.Turtle()
+        self.pen.hideturtle()
+        self.pen.penup()
+        self.pen.color("OliveDrab")
+        self.update_pen()
+
+        self.screen.listen()
+        self.screen.onkeypress(self.player.move_left, "Left")
+        self.screen.onkeypress(self.player.move_right, "Right")
+        self.screen.onkeypress(self.player.move_up, "Up")
+        self.screen.onkeypress(self.player.move_down, "Down")
+
+        self.game_over = False
+
+        self.drawer_snow = turtle.Turtle()
+        self.drawer_snow.hideturtle()
+        self.drawer_snow.penup()
+        self.drawer_snow.speed(0)
+
+        self.drawer_fire = turtle.Turtle()
+        self.drawer_fire.hideturtle()
+        self.drawer_fire.penup()
+        self.drawer_fire.speed(0)
+        self.drawer_fire.shape("fire.gif")
+
         self.__draw_border()
-        self.my_paddle.draw()
-        for i in range(len(self.ball_list)):
-            self.ball_list[i].draw()
-        turtle.update()
-        heapq.heappush(self.pq, my_event.Event(self.t + 1.0/self.HZ, None, None, None))
 
-    def __paddle_predict(self):
-        for i in range(len(self.ball_list)):
-            a_ball = self.ball_list[i]
-            dtP = a_ball.time_to_hit_paddle(self.my_paddle)
-            heapq.heappush(self.pq, my_event.Event(self.t + dtP, a_ball, None, self.my_paddle))
+    def __draw_border(self):
+        border = turtle.Turtle()
+        border.hideturtle()
+        border.penup()
+        border.pensize(5)
+        border.color("black")
 
-    # move_left and move_right handlers update paddle positions
-    def move_left(self):
-        if (self.my_paddle.location[0] - self.my_paddle.width/2 - 40) >= -self.canvas_width:
-            self.my_paddle.set_location([self.my_paddle.location[0] - 40, self.my_paddle.location[1]])
+        border.goto(-self.canvas_width / 2, self.canvas_height / 2)  # top-left corner
+        border.pendown()
 
-    # move_left and move_right handlers update paddle positions
-    def move_right(self):
-        if (self.my_paddle.location[0] + self.my_paddle.width/2 + 40) <= self.canvas_width:
-            self.my_paddle.set_location([self.my_paddle.location[0] + 40, self.my_paddle.location[1]])
+        for _ in range(2):
+            border.forward(self.canvas_width)
+            border.right(90)
+            border.forward(self.canvas_height)
+            border.right(90)
+
+        border.penup()
+
+    def update_pen(self):
+        self.pen.clear()
+        self.pen.goto(0, 260)
+        self.pen.write(f"I need {self.needed_ball} snowballs. Please help me",
+                       align="center", font=("American Typewriter", 24, "normal"))
+        self.pen.goto(0, 230)
+        self.pen.write(f"Snow Collected: {self.score} / {self.needed_ball}   Heart: {self.heart}",
+                       align="Center", font=("American Typewriter", 24, "bold"))
 
     def run(self):
-        # initialize pq with collision events and redraw event
-        for i in range(len(self.ball_list)):
-            self.__predict(self.ball_list[i])
-        heapq.heappush(self.pq, my_event.Event(0, None, None, None))
+        dt = 1.5
+        while not self.game_over and self.score < self.needed_ball:
+            width = self.screen.window_width()
+            height = self.screen.window_height()
 
-        # listen to keyboard events and activate move_left and move_right handlers accordingly
-        self.screen.listen()
-        self.screen.onkey(self.move_left, "Left")
-        self.screen.onkey(self.move_right, "Right")
+            for ball in self.balls:
+                ball.move(dt)
+                ball.bounce(width, height)
 
-        while (True):
-            e = heapq.heappop(self.pq)
-            if not e.is_valid():
-                continue
+                px, py = self.player.get_position()
+                dist = ball.distance_to(px, py)
+                if dist < (ball.size * 10 + self.player.size * 10):
+                    if ball.status == "player":
+                        self.score += 1
+                    else:
+                        self.heart -= 1
+                        if self.heart <= 0:
+                            self.game_over = True
+                    ball.reset_position(width, height)
 
-            ball_a = e.a
-            ball_b = e.b
-            paddle_a = e.paddle
+            self.drawer_snow.clear()
+            self.drawer_fire.clearstamps()
 
-            # update positions, and then simulation clock
-            for i in range(len(self.ball_list)):
-                self.ball_list[i].move(e.time - self.t)
-            self.t = e.time
+            for ball in self.balls:
+                if ball.status == "player":
+                    self.drawer_snow.goto(ball.x, ball.y)
+                    self.drawer_snow.dot(ball.size * 4, ball.color)
+                else:
+                    self.drawer_fire.goto(ball.x, ball.y)
+                    self.drawer_fire.stamp()
 
-            if (ball_a is not None) and (ball_b is not None) and (paddle_a is None):
-                ball_a.bounce_off(ball_b)
-            elif (ball_a is not None) and (ball_b is None) and (paddle_a is None):
-                ball_a.bounce_off_vertical_wall()
-            elif (ball_a is None) and (ball_b is not None) and (paddle_a is None):
-                ball_b.bounce_off_horizontal_wall()
-            elif (ball_a is None) and (ball_b is None) and (paddle_a is None):
-                self.__redraw()
-            elif (ball_a is not None) and (ball_b is None) and (paddle_a is not None):
-                ball_a.bounce_off_paddle()
+            self.update_pen()
+            self.screen.update()
+            time.sleep(0.01)
 
-            self.__predict(ball_a)
-            self.__predict(ball_b)
-
-            # regularly update the prediction for the paddle as its position may always be changing due to keyboard events
-            self.__paddle_predict()
+            ending_scene = EndingScene(self.score, self.needed_ball, self.heart)
+            ending_scene.display_ending()
 
 
-        # hold the window; close it by clicking the window close 'x' mark
-        turtle.done()
-
-# num_balls = int(input("Number of balls to simulate: "))
-num_balls = 10
-my_simulator = BouncingSimulator(num_balls)
-my_simulator.run()
+if __name__ == "__main__":
+    game = Game()
+    game.run()
+    turtle.done()
