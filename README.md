@@ -16,7 +16,7 @@ I use original Ball class to create snowballs and fireballs and modify the Paddl
 For the Ball class, it calculates movement of the ball. The Snow and Fire class then inherited from Ball class
 and work as an object. The Player class controls the player movement and include the method of 
 moving up, down, left, and right. The ending class has methods that draw the win ending and lose ending.
-And show if a plyer win or lose by display_ending method. Next, the Game class, it is like a final class where
+And show if a player win or lose by display_ending method. Next, the Game class, it is like a final class where
 everything is combined and run as a game. I used the provided code to draw the border. The program will listen to
 keypress and move the player based on the movement method defined in the Player class.
 This class calculated if the Ball hit the player or not then score them.
