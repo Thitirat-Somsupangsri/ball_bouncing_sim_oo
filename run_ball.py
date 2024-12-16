@@ -22,10 +22,11 @@ class Game:
 
         self.player = Player("paddle_display.gif", 2, self.screen)
 
+        self.num_fire = random.randint(2, 5)
         self.balls = []
         for _ in range(20):
             self.balls.append(Snow(screen=self.screen))
-        for _ in range(4):
+        for _ in range(self.num_fire):
             self.balls.append(Fire(screen=self.screen))
 
         self.score = 0
