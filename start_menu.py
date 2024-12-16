@@ -62,3 +62,4 @@ class StartSimulator:
         self.draw_start_button()
         turtle.onscreenclick(self.start_simulation)
         turtle.done()
+
